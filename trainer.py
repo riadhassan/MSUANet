@@ -84,33 +84,48 @@ def trainer_synapse(args, model, snapshot_path):
             image_batch, label_batch = sampled_batch['image'], sampled_batch['label']
             image_batch, label_batch = image_batch.cuda(), label_batch.squeeze(1).cuda()
             
-            P = model(image_batch, mode='train')
+            p, p_aux = model(image_batch, mode='train')
 
-            if  not isinstance(P, list):
-                P = [P]
-            if epoch_num == 0 and i_batch == 0:
-                n_outs = len(P)
-                out_idxs = list(np.arange(n_outs)) #[0, 1, 2, 3]#, 4, 5, 6, 7]
-                if args.supervision == 'mutation':
-                    ss = [x for x in powerset(out_idxs)]
-                elif args.supervision == 'deep_supervision':
-                    ss = [[x] for x in out_idxs]
-                else:
-                    ss = [[-1]]
-                print(ss)
-            
-            loss = 0.0
+            print(p.shape, p_aux.shape)
+
+            # loss = 0.0
             w_ce, w_dice = 0.3, 0.7
-          
-            for s in ss:
-                iout = 0.0
-                if(s==[]):
-                    continue
-                for idx in range(len(s)):
-                    iout += P[s[idx]]
-                loss_ce = ce_loss(iout, label_batch[:].long())
-                loss_dice = dice_loss(iout, label_batch, softmax=True)
-                loss += (w_ce * loss_ce + w_dice * loss_dice)
+
+            loss_ce = ce_loss(p, label_batch[:].long())
+            loss_dice = dice_loss(p, label_batch, softmax=True)
+            loss_ce_aux = ce_loss(p_aux, label_batch[:].long())
+            loss_dice_aux = dice_loss(p_aux, label_batch, softmax=True)
+            loss_aux = (w_ce * loss_ce_aux + w_dice * loss_dice_aux)
+            loss_main = (w_ce * loss_ce + w_dice * loss_dice)
+            loss = loss_main + loss_aux
+
+            print(f"Aux loss: {loss_aux} \t Main Loss: {loss_main} \t Total loss: {loss}")
+
+            # if  not isinstance(P, list):
+            #     P = [P]
+            # if epoch_num == 0 and i_batch == 0:
+            #     n_outs = len(P)
+            #     out_idxs = list(np.arange(n_outs)) #[0, 1, 2, 3]#, 4, 5, 6, 7]
+            #     if args.supervision == 'mutation':
+            #         ss = [x for x in powerset(out_idxs)]
+            #     elif args.supervision == 'deep_supervision':
+            #         ss = [[x] for x in out_idxs]
+            #     else:
+            #         ss = [[-1]]
+            #     print(ss)
+            #
+            # loss = 0.0
+            # w_ce, w_dice = 0.3, 0.7
+            #
+            # for s in ss:
+            #     iout = 0.0
+            #     if(s==[]):
+            #         continue
+            #     for idx in range(len(s)):
+            #         iout += P[s[idx]]
+            #     loss_ce = ce_loss(iout, label_batch[:].long())
+            #     loss_dice = dice_loss(iout, label_batch, softmax=True)
+            #     loss += (w_ce * loss_ce + w_dice * loss_dice)
             
             optimizer.zero_grad()
             loss.backward()

@@ -5,6 +5,10 @@ import torch.nn.functional as F
 from lib.pvtv2 import pvt_v2_b0, pvt_v2_b1, pvt_v2_b2, pvt_v2_b3, pvt_v2_b4, pvt_v2_b5
 from lib.resnet import resnet18, resnet34, resnet50, resnet101, resnet152
 from lib.decoders import EMCAD
+from networks_utils import *
+
+
+
 
 
 class EMCADNet(nn.Module):
@@ -73,19 +77,22 @@ class EMCADNet(nn.Module):
         
         print('Model %s created, param count: %d' %
                      (encoder+' backbone: ', sum([m.numel() for m in self.backbone.parameters()])))
-        
+
         #   decoder initialization
-        self.decoder = EMCAD(channels=channels, kernel_sizes=kernel_sizes, expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add, lgag_ks=lgag_ks, activation=activation)
-        
+        self.decoder_main = EMCAD(channels=channels, kernel_sizes=kernel_sizes, expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add, lgag_ks=lgag_ks, activation=activation)
+        self.decoder_aux = EMCAD(channels=channels, kernel_sizes=kernel_sizes, expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add, lgag_ks=lgag_ks, activation=activation)
+        self.noise = FeatureNoise()
         print('Model %s created, param count: %d' %
                      ('EMCAD decoder: ', sum([m.numel() for m in self.decoder.parameters()])))
              
-        self.out_head4 = nn.Conv2d(channels[0], num_classes, 1)
-        self.out_head3 = nn.Conv2d(channels[1], num_classes, 1)
-        self.out_head2 = nn.Conv2d(channels[2], num_classes, 1)
+        # self.out_head4 = nn.Conv2d(channels[0], num_classes, 1)
+        # self.out_head3 = nn.Conv2d(channels[1], num_classes, 1)
+        # self.out_head2 = nn.Conv2d(channels[2], num_classes, 1)
         self.out_head1 = nn.Conv2d(channels[3], num_classes, 1)
-        
-    def forward(self, x, mode='test'):
+
+        self.out_head1_aux = nn.Conv2d(channels[3], num_classes, 1)
+
+    def forward(self, x, weights= None, mode='test'):
         
         # if grayscale input, convert to 3 channels
         if x.size()[1] == 1:
@@ -93,26 +100,39 @@ class EMCADNet(nn.Module):
         
         # encoder
         x1, x2, x3, x4 = self.backbone(x)
+        self.skips = [x3, x2, x1]
         #print(x1.shape, x2.shape, x3.shape, x4.shape)
 
+        if isinstance(weights, torch.Tensor):
+            features = [x.shape[1] for x in self.skips]
+            dims = [x.shape[2] for x in self.skips]
+            self.attenion = U_AttentionDense(dims, features)
+            self.skips = self.attenion(weights, self.skips)
+
         # decoder
-        dec_outs = self.decoder(x4, [x3, x2, x1])
-        
+        x4_noise = self.noise(x4)
+        dec_outs = self.decoder_main(x4, self.skips)
+        dec_outs_noise = self.decoder_aux(x4_noise, self.skips)
+
         # prediction heads  
-        p4 = self.out_head4(dec_outs[0])
-        p3 = self.out_head3(dec_outs[1])
-        p2 = self.out_head2(dec_outs[2])
+        # p4 = self.out_head4(dec_outs[0])
+        # p3 = self.out_head3(dec_outs[1])
+        # p2 = self.out_head2(dec_outs[2])
         p1 = self.out_head1(dec_outs[3])
 
-        p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
-        p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
-        p2 = F.interpolate(p2, scale_factor=8, mode='bilinear')
+        p1_aux = self.out_head1_aux(dec_outs_noise[3])
+
+        # p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
+        # p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
+        # p2 = F.interpolate(p2, scale_factor=8, mode='bilinear')
+
         p1 = F.interpolate(p1, scale_factor=4, mode='bilinear')
+        p1_aux = F.interpolate(p1_aux, scale_factor=4, mode='bilinear')
 
         if mode == 'test':
-            return [p4, p3, p2, p1]
+            return p1, p1_aux
         
-        return [p4, p3, p2, p1]
+        return p1, p1_aux
                
 
         
