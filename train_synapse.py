@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
-from lib.networks import EMCADNet
+from network_lib.networks import EMCADNet
 from trainer import trainer_synapse
 
 parser = argparse.ArgumentParser()
