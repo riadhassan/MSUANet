@@ -85,14 +85,14 @@ class EMCADNet(nn.Module):
         print('Model %s created, param count: %d' %
                      ('EMCAD decoder: ', sum([m.numel() for m in self.decoder.parameters()])))
              
-        # self.out_head4 = nn.Conv2d(channels[0], num_classes, 1)
-        # self.out_head3 = nn.Conv2d(channels[1], num_classes, 1)
-        # self.out_head2 = nn.Conv2d(channels[2], num_classes, 1)
+        self.out_head4 = nn.Conv2d(channels[0], num_classes, 1)
+        self.out_head3 = nn.Conv2d(channels[1], num_classes, 1)
+        self.out_head2 = nn.Conv2d(channels[2], num_classes, 1)
         self.out_head1 = nn.Conv2d(channels[3], num_classes, 1)
 
         self.out_head1_aux = nn.Conv2d(channels[3], num_classes, 1)
 
-    def forward(self, x, weights= None, mode='test'):
+    def forward(self, x, weights=None, mode='test'):
         
         # if grayscale input, convert to 3 channels
         if x.size()[1] == 1:
@@ -103,11 +103,11 @@ class EMCADNet(nn.Module):
         self.skips = [x3, x2, x1]
         #print(x1.shape, x2.shape, x3.shape, x4.shape)
 
-        if isinstance(weights, torch.Tensor):
-            features = [x.shape[1] for x in self.skips]
-            dims = [x.shape[2] for x in self.skips]
-            self.attenion = U_AttentionDense(dims, features)
-            self.skips = self.attenion(weights, self.skips)
+        # if isinstance(weights, torch.Tensor):
+        #     features = [x.shape[1] for x in self.skips]
+        #     dims = [x.shape[2] for x in self.skips]
+        #     self.attenion = U_AttentionDense(dims, features)
+        #     self.skips = self.attenion(weights, self.skips)
 
         # decoder
         x4_noise = self.noise(x4)
@@ -115,24 +115,32 @@ class EMCADNet(nn.Module):
         dec_outs_noise = self.decoder_aux(x4_noise, self.skips)
 
         # prediction heads  
-        # p4 = self.out_head4(dec_outs[0])
-        # p3 = self.out_head3(dec_outs[1])
-        # p2 = self.out_head2(dec_outs[2])
+        p4 = self.out_head4(dec_outs[0])
+        p3 = self.out_head3(dec_outs[1])
+        p2 = self.out_head2(dec_outs[2])
         p1 = self.out_head1(dec_outs[3])
 
-        p1_aux = self.out_head1_aux(dec_outs_noise[3])
+        p4_aux = self.out_head4(dec_outs_noise[0])
+        p3_aux = self.out_head3(dec_outs_noise[1])
+        p2_aux = self.out_head2(dec_outs_noise[2])
+        p1_aux = self.out_head1(dec_outs_noise[3])
 
-        # p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
-        # p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
-        # p2 = F.interpolate(p2, scale_factor=8, mode='bilinear')
-
+        p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
+        p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
+        p2 = F.interpolate(p2, scale_factor=8, mode='bilinear')
         p1 = F.interpolate(p1, scale_factor=4, mode='bilinear')
+
+        p4_aux = F.interpolate(p4_aux, scale_factor=32, mode='bilinear')
+        p3_aux = F.interpolate(p3_aux, scale_factor=16, mode='bilinear')
+        p2_aux = F.interpolate(p2_aux, scale_factor=8, mode='bilinear')
         p1_aux = F.interpolate(p1_aux, scale_factor=4, mode='bilinear')
 
+
+
         if mode == 'test':
-            return p1, p1_aux
+            return [p1, p2, p3, p4, p1_aux, p2_aux, p3_aux, p4_aux]
         
-        return p1, p1_aux
+        return [p1, p2, p3, p4, p1_aux, p2_aux, p3_aux, p4_aux]
                
 
         
@@ -141,5 +149,5 @@ if __name__ == '__main__':
     input_tensor = torch.randn(1, 3, 352, 352).cuda()
 
     P = model(input_tensor)
-    print(P[0].size(), P[1].size(), P[2].size(), P[3].size())
+    print(P[0].size(), P[1].size(), P[2].size(), P[3].size(), P[4].size(), P[5].size(), P[6].size(), P[7].size())
 
