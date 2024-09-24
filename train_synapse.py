@@ -13,18 +13,18 @@ from trainer import trainer_synapse
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--root_path', type=str,
-                    default='./data/synapse/train_npz', help='root dir for data')
+                    default='C:\\Users\IICT2\PycharmProjects\EMCAD\data\synapse\\train_npz_new', help='root dir for data')
 parser.add_argument('--volume_path', type=str,
-                    default='./data/synapse/test_vol_h5', help='root dir for validation volume data')
+                    default='C:\\Users\IICT2\PycharmProjects\EMCAD\data\synapse\\test_vol_h5_new', help='root dir for validation volume data')
 parser.add_argument('--dataset', type=str,
                     default='Synapse', help='experiment_name')
 parser.add_argument('--list_dir', type=str,
-                    default='./lists/lists_Synapse', help='list dir')
+                    default='C:\\Users\IICT2\PycharmProjects\EMCAD\lists\lists_Synapse', help='list dir')
 parser.add_argument('--num_classes', type=int,
                     default=9, help='output channel of network')
 # network related parameters
 parser.add_argument('--encoder', type=str,
-                    default='pvt_v2_b2', help='Name of encoder: pvt_v2_b2, pvt_v2_b0, resnet18, resnet34 ...')
+                    default='pvt_v2_b0', help='Name of encoder: pvt_v2_b2, pvt_v2_b0, resnet18, resnet34 ...')
 parser.add_argument('--expansion_factor', type=int,
                     default=2, help='expansion factor in MSCB block')
 parser.add_argument('--kernel_sizes', type=int, nargs='+',
@@ -45,7 +45,7 @@ parser.add_argument('--supervision', type=str,
 parser.add_argument('--max_iterations', type=int,
                     default=50000, help='maximum epoch number to train')
 parser.add_argument('--max_epochs', type=int,
-                    default=300, help='maximum epoch number to train')
+                    default=100, help='maximum epoch number to train')
 parser.add_argument('--batch_size', type=int,
                     default=6, help='batch_size per gpu')
 parser.add_argument('--base_lr', type=float,  default=0.0001,

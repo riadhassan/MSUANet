@@ -22,7 +22,7 @@ from utils.utils import powerset, one_hot_encoder, DiceLoss, val_single_volume
 def inference(args, model, best_performance):
     db_test = Synapse_dataset(base_dir=args.volume_path, split="test_vol", list_dir=args.list_dir, nclass=args.num_classes)
     
-    testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
+    testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=0)
     logging.info("{} test iterations per epoch".format(len(testloader)))
     model.eval()
     metric_list = 0.0
@@ -55,7 +55,7 @@ def trainer_synapse(args, model, snapshot_path):
     def worker_init_fn(worker_id):
         random.seed(args.seed + worker_id)
 
-    trainloader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True,
+    trainloader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True,
                              worker_init_fn=worker_init_fn)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -125,7 +125,7 @@ class PolypDataset(data.Dataset):
         return self.size
 
 
-def get_loader(image_root, gt_root, batchsize, trainsize, shuffle=False, num_workers=4, pin_memory=True, augmentation=False): #shuffle=True
+def get_loader(image_root, gt_root, batchsize, trainsize, shuffle=False, num_workers=0, pin_memory=True, augmentation=False): #shuffle=True
 
     dataset = PolypDataset(image_root, gt_root, trainsize, augmentation)
     data_loader = data.DataLoader(dataset=dataset,

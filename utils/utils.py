@@ -15,7 +15,7 @@ import pandas as pd
 
 from thop import profile
 from thop import clever_format
-from ptflops import get_model_complexity_info
+# from ptflops import get_model_complexity_info
 
 def powerset(seq):
     """
@@ -314,7 +314,7 @@ def print_model_stats(model, input_size=(3, 224, 224)):
     print(f'Model created, param count: {total_params}')
     
     # Calculate GMACs using ptflops
-    macs, params = get_model_complexity_info(model, input_size, as_strings=True, print_per_layer_stat=True)
+    # macs, params = get_model_complexity_info(model, input_size, as_strings=True, print_per_layer_stat=True)
     
     # Display GMACs and params
-    print(f'Model: {macs} GMACs, {params} parameters')
+    # print(f'Model: {macs} GMACs, {params} parameters')
