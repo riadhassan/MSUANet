@@ -1,7 +1,7 @@
 from collections import OrderedDict
 import torch
 import torch.nn as nn
-from BAM import BAM
+from network_lib.BAM import BAM
 import math
 import numpy as np
 from torch.distributions.uniform import Uniform

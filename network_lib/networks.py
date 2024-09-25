@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from network_lib.pvtv2 import pvt_v2_b0, pvt_v2_b1, pvt_v2_b2, pvt_v2_b3, pvt_v2_b4, pvt_v2_b5
 from network_lib.resnet import resnet18, resnet34, resnet50, resnet101, resnet152
 from network_lib.decoders import EMCAD
-from networks_utils import *
+from network_lib.networks_utils import *
 
 
 
@@ -79,7 +79,7 @@ class EMCADNet(nn.Module):
                      (encoder+' backbone: ', sum([m.numel() for m in self.backbone.parameters()])))
 
         #   decoder initialization
-        self.decoder_main = EMCAD(channels=channels, kernel_sizes=kernel_sizes, expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add, lgag_ks=lgag_ks, activation=activation)
+        self.decoder = EMCAD(channels=channels, kernel_sizes=kernel_sizes, expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add, lgag_ks=lgag_ks, activation=activation)
         self.decoder_aux = EMCAD(channels=channels, kernel_sizes=kernel_sizes, expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add, lgag_ks=lgag_ks, activation=activation)
         self.noise = FeatureNoise()
         print('Model %s created, param count: %d' %
@@ -111,36 +111,36 @@ class EMCADNet(nn.Module):
 
         # decoder
         x4_noise = self.noise(x4)
-        dec_outs = self.decoder_main(x4, self.skips)
+        dec_outs = self.decoder(x4, self.skips)
         dec_outs_noise = self.decoder_aux(x4_noise, self.skips)
 
         # prediction heads  
-        p4 = self.out_head4(dec_outs[0])
-        p3 = self.out_head3(dec_outs[1])
+        # p4 = self.out_head4(dec_outs[0])
+        # p3 = self.out_head3(dec_outs[1])
         p2 = self.out_head2(dec_outs[2])
         p1 = self.out_head1(dec_outs[3])
 
-        p4_aux = self.out_head4(dec_outs_noise[0])
-        p3_aux = self.out_head3(dec_outs_noise[1])
+        # p4_aux = self.out_head4(dec_outs_noise[0])
+        # p3_aux = self.out_head3(dec_outs_noise[1])
         p2_aux = self.out_head2(dec_outs_noise[2])
         p1_aux = self.out_head1(dec_outs_noise[3])
 
-        p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
-        p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
+        # p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
+        # p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
         p2 = F.interpolate(p2, scale_factor=8, mode='bilinear')
         p1 = F.interpolate(p1, scale_factor=4, mode='bilinear')
 
-        p4_aux = F.interpolate(p4_aux, scale_factor=32, mode='bilinear')
-        p3_aux = F.interpolate(p3_aux, scale_factor=16, mode='bilinear')
+        # p4_aux = F.interpolate(p4_aux, scale_factor=32, mode='bilinear')
+        # p3_aux = F.interpolate(p3_aux, scale_factor=16, mode='bilinear')
         p2_aux = F.interpolate(p2_aux, scale_factor=8, mode='bilinear')
         p1_aux = F.interpolate(p1_aux, scale_factor=4, mode='bilinear')
 
 
 
         if mode == 'test':
-            return [p1, p2, p3, p4, p1_aux, p2_aux, p3_aux, p4_aux]
+            return [p1, p2, p1_aux, p2_aux]
         
-        return [p1, p2, p3, p4, p1_aux, p2_aux, p3_aux, p4_aux]
+        return [p1, p2, p1_aux, p2_aux]
                
 
         
