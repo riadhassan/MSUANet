@@ -240,3 +240,29 @@ class U_Attention(nn.Module):
         # attention = self.attention(weights)
         new_bottleneck = weights * bottleneck
         return new_bottleneck
+
+def get_uncertainty_weights(args, pred, pred_aux):
+    subs = torch.zeros((args.img_size, args.img_size))
+    pred = torch.squeeze(torch.argmax(pred, dim=1))
+    pred_a = torch.squeeze(torch.argmax(pred_aux, dim=1))
+    for i in range(1, args.num_classes):
+        mask_pred = torch.zeros((args.img_size, args.img_size), dtype=torch.long)
+        mask_pred_a = torch.zeros((args.img_size, args.img_size), dtype=torch.long)
+        mask_pred[pred == i] = 1
+        mask_pred_a[pred_a == i] = 1
+        mask_union = torch.bitwise_or(mask_pred, mask_pred_a)
+        mask_inter = torch.bitwise_and(mask_pred, mask_pred_a)
+        subs[mask_inter == 1] = i
+        subs[mask_union == 1] = i
+
+    ### Probability over channels
+    pw = torch.softmax(pred, dim=1).detach().cpu()
+    pw_a = torch.softmax(pred_aux, dim=1).detach().cpu()
+
+    pw = torch.max(pw, dim=1).values
+    pw_a = torch.max(pw_a, dim=1).values
+
+
+    weights = (pw + pw_a)
+    weights = weights / weights.max()
+    return weights[None, :, :, :], subs[None, None, :, :]
