@@ -185,12 +185,14 @@ class FeatureNoise(nn.Module):
 
 
 class U_AttentionDense(nn.Module):
-    def __init__(self, dims, Features):
+    def __init__(self, dims, Features, batch_cnt):
         super(U_AttentionDense, self).__init__()
         self.features = Features
+        self.dims = dims
+        self.batch_cnt = batch_cnt
         self.shape = []
-        for c, w in zip(Features, dims):
-            self.shape.append((1, c, w, w))
+        for b, c, w in zip(self.batch_cnt, self.features, self.dims,):
+            self.shape.append((b, c, w, w))
         self.downsamples = OrderedDict()
         for i, x in enumerate(dims):
             self.downsamples['down' + str(i)] = nn.Upsample(size=(x, x), mode='bilinear')
@@ -198,14 +200,17 @@ class U_AttentionDense(nn.Module):
     def create_weight_list(self, weights):
         self.weight_list = []
         for i, feat in enumerate(self.features):
-            weights_new = self.downsamples['down' + str(i)](weights)
-            weight_stake = []
+            self.weights_new = self.downsamples['down' + str(i)](weights)
+
+            self.weight_stake = []
             for j in range(feat):
-                weight_stake.append(weights_new)
-            weights_new = torch.stack(weight_stake, dim=1)
-            weights_new = torch.reshape(weights_new, self.shape[i])
-            weights_new = weights_new.to("cuda")
-            self.weight_list.append(weights_new)
+                self.weight_stake.append(self.weights_new)
+            self.weights_new = torch.stack(self.weight_stake, dim=1)
+            if self.weights_new.shape[2] != self.shape[i][0]:
+                self.weights_new = self.weights_new[:, :, :self.shape[i][0], :, :]
+            self.weights_new = torch.reshape(self.weights_new, self.shape[i])
+            self.weights_new = self.weights_new.to("cuda")
+            self.weight_list.append(self.weights_new)
 
     def forward(self, weights, skips):
         self.create_weight_list(weights)
@@ -242,14 +247,14 @@ class U_Attention(nn.Module):
         return new_bottleneck
 
 def get_uncertainty_weights(args, pred, pred_aux):
-    subs = torch.zeros((args.img_size, args.img_size))
-    pred = torch.squeeze(torch.argmax(pred, dim=1))
-    pred_a = torch.squeeze(torch.argmax(pred_aux, dim=1))
+    subs = torch.zeros((pred.shape[0], args.img_size, args.img_size))
+    arg_pred = torch.argmax(pred, dim=1)
+    arg_pred_a = torch.argmax(pred_aux, dim=1)
     for i in range(1, args.num_classes):
-        mask_pred = torch.zeros((args.img_size, args.img_size), dtype=torch.long)
-        mask_pred_a = torch.zeros((args.img_size, args.img_size), dtype=torch.long)
-        mask_pred[pred == i] = 1
-        mask_pred_a[pred_a == i] = 1
+        mask_pred = torch.zeros((pred.shape[0],args.img_size, args.img_size), dtype=torch.long)
+        mask_pred_a = torch.zeros((pred_aux.shape[0],args.img_size, args.img_size), dtype=torch.long)
+        mask_pred[arg_pred == i] = 1
+        mask_pred_a[arg_pred_a == i] = 1
         mask_union = torch.bitwise_or(mask_pred, mask_pred_a)
         mask_inter = torch.bitwise_and(mask_pred, mask_pred_a)
         subs[mask_inter == 1] = i

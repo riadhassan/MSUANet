@@ -78,9 +78,10 @@ def trainer_synapse(args, model, snapshot_path):
     logging.info("{} iterations per epoch. {} max iterations ".format(len(trainloader), max_iterations))
     best_performance = 0.0
     iterator = tqdm(range(max_epoch), ncols=70)
-    weights = None
+
     
     for epoch_num in iterator:
+        weights = None
         
         for i_batch, sampled_batch in enumerate(trainloader):
             image_batch, label_batch = sampled_batch['image'], sampled_batch['label']
@@ -113,7 +114,7 @@ def trainer_synapse(args, model, snapshot_path):
             if  not isinstance(P, list):
                 P = [P]
             if epoch_num == 0 and i_batch == 0:
-                n_outs = len(P) - 1
+                n_outs = len(P)
                 out_idxs = list(np.arange(n_outs)) #[0, 1, 2, 3]#, 4, 5, 6, 7]
                 if args.supervision == 'mutation':
                     ss = [x for x in powerset(out_idxs)]
