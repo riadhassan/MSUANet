@@ -45,7 +45,7 @@ parser.add_argument('--supervision', type=str,
 parser.add_argument('--max_iterations', type=int,
                     default=50000, help='maximum epoch number to train')
 parser.add_argument('--max_epochs', type=int,
-                    default=100, help='maximum epoch number to train')
+                    default=300, help='maximum epoch number to train')
 parser.add_argument('--batch_size', type=int,
                     default=6, help='batch_size per gpu')
 parser.add_argument('--base_lr', type=float,  default=0.0001,
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     else: 
         dw_mode = 'parallel'
     
-    run = 6
+    run = 7
     args.exp = args.encoder + '_EMCAD_kernel_sizes_' + str(args.kernel_sizes) + '_dw_' + dw_mode + '_' + aggregation + '_lgag_ks_' + str(args.lgag_ks) + '_ef' + str(args.expansion_factor) + '_act_mscb_' + args.activation_mscb + '_loss_' + args.supervision + '_output_final_layer_Run'+str(run)+'_' + dataset_name + str(args.img_size)
     snapshot_path = "model_pth/{}/{}".format(args.exp, args.encoder + '_EMCAD_kernel_sizes_' + str(args.kernel_sizes) + '_dw_' + dw_mode + '_' + aggregation + '_lgag_ks_' + str(args.lgag_ks) + '_ef' + str(args.expansion_factor) + '_act_mscb_' + args.activation_mscb + '_loss_' + args.supervision + '_output_final_layer_Run'+str(run))
     snapshot_path = snapshot_path.replace('[', '').replace(']', '').replace(', ', '_')
