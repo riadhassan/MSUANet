@@ -132,9 +132,9 @@ class EMCADNet(nn.Module):
         p1_noise = F.interpolate(p1_noise, scale_factor=4, mode='bilinear')
 
         if mode == 'test':
-            return [p1, p2, p2_noise, p1_noise]
+            return [p2_noise, p1_noise, p2, p1]
         
-        return [p1, p2, p2_noise, p1_noise]
+        return [p2_noise, p1_noise, p2, p1]
                
 
         
