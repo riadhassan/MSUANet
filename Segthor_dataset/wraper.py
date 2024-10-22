@@ -15,7 +15,7 @@ class ModelWraper:
     def __init__(self, conf):
         self.conf = conf
         self.device = torch.device(conf.device)
-        if self.conf.network_type == "Unet":
+        if self.conf.network_type == "EMCAD":
             self.seg_model = EMCADNet(num_classes=conf.num_classes, kernel_sizes=conf.kernel_sizes,
                              expansion_factor=conf.expansion_factor, dw_parallel=not conf.no_dw_parallel,
                              add=not conf.concatenation, lgag_ks=conf.lgag_ks, activation=conf.activation_mscb,
@@ -28,7 +28,8 @@ class ModelWraper:
         self.optimizer1 = optim.AdamW(self.model.parameters(), lr=self.base_lr, weight_decay=0.0001)
         self.ce_loss = CrossEntropyLoss()
         self.dice_loss = DiceLoss(self.num_classes)
-        writer = SummaryWriter(snapshot_path + '/log')
+        self.writer = SummaryWriter(conf.snapshot_path + '/log')
+        self.supervision = conf.supervision
 
 
     def set_mood(self, Train=True):
@@ -47,9 +48,9 @@ class ModelWraper:
         if epoch == 0 and iter == 0:
             n_outs = len(P)
             out_idxs = list(np.arange(n_outs))  # [0, 1, 2, 3]#, 4, 5, 6, 7]
-            if conf.supervision == 'mutation':
+            if self.supervision == 'mutation':
                 ss = [x for x in powerset(out_idxs)]
-            elif conf.supervision == 'deep_supervision':
+            elif self.supervision == 'deep_supervision':
                 ss = [[x] for x in out_idxs]
             else:
                 ss = [[-1]]
@@ -77,12 +78,11 @@ class ModelWraper:
             param_group['lr'] = lr_
 
         iter_num = iter + 1
-        writer.add_scalar('info/lr', lr_, iter_num)
-        writer.add_scalar('info/total_loss', loss, iter_num)
+        self.writer.add_scalar('info/lr', lr_, iter_num)
+        self.writer.add_scalar('info/total_loss', loss, iter_num)
 
         if iter_num % 50 == 0:
             logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
 
         return loss
 
-    logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter, epoch, loss.item(), lr_))

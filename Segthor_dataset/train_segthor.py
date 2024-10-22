@@ -28,25 +28,22 @@ def save_validation_nifti(img, gt, seg, path, patient, affine):
 
 def conf():
     args = argparse.Argumentargs()
-    args.add_argument("--data_root", type=str, default="/home/nazib/Medical/Data/Dataset_LCTSC")
+    args.add_argument("--data_root", type=str, default="")
     args.add_argument("--input_channels", type=int, default=1)
     args.add_argument("--output_channels", type=int, default=5)
     args.add_argument("--lr", type=float, default=0.001)
     args.add_argument("--batch_size", type=int, default=1)
     args.add_argument("--save_dir", type=str, default="/output")
     args.add_argument("--model_name", type=str, default="test2")
-    args.add_argument("--printfq", type=int, default=10)
-    args.add_argument("--writerfq", type=int, default=10)
-    args.add_argument("--model_save_fq", type=bool, default=True)
+    args.add_argument("--printfq", type=int, default=50)
+    args.add_argument("--writerfq", type=int, default=50)
+    args.add_argument("--model_save_fq", type=bool, default=False)
     args.add_argument("--debug_type", type=str, default="nifti", help="Two options: 1) nifti. 2)jpg")
-    args.add_argument("--num_epoch", type=int, default=200)
+    args.add_argument("--num_epoch", type=int, default=300)
     args.add_argument("--done_epoch", type=int, default=0)
     args.add_argument("--device", type=str, default="cuda")
-    args.add_argument("--loss", type=str, default="Dice")
     args.add_argument("--imsize", type=int, default=256)
-    args.add_argument("--isprob", type=str, default='yes', help="Will calculate uncertainty")
-    args.add_argument("--aux_file", type=str, default="res_50")
-    args.add_argument("--network_type", type=str, default="Unet")
+    args.add_argument("--network_type", type=str, default="EMCAD")
     args.add_argument('--dataset', type=str,
                         default='SegThor', help='experiment_name')
     args.add_argument('--list_dir', type=str,
@@ -104,7 +101,7 @@ def conf():
 
     dataset_name = args.dataset
     dataset_config = {
-        'Synapse': {
+        'SegThor': {
             'root_path': args.root_path,
             'volume_path': args.volume_path,
             'list_dir': args.list_dir,
@@ -147,6 +144,7 @@ def conf():
     snapshot_path = snapshot_path + '_lr' + str(args.base_lr) if args.base_lr != 0.0001 else snapshot_path
     snapshot_path = snapshot_path + '_' + str(args.img_size)
     snapshot_path = snapshot_path + '_s' + str(args.seed) if args.seed != 1234 else snapshot_path
+    args.snapshot_path = snapshot_path
 
     if not os.path.exists(snapshot_path):
         os.makedirs(snapshot_path)

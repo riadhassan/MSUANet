@@ -44,20 +44,20 @@ def get_LCTSC_regions():
     return regions
 
 
-def print_Thoracic(organ_dice, organ_hd):
+def print_Thoracic(organ_dice, organ_asd):
     dice_dict = {"Esophegus Dice": organ_dice[0], "Heart": organ_dice[1], "Trachea": organ_dice[2],
                  "Aorta": organ_dice[3]}
-    hd_dict = {"Esophegus HD": organ_hd[0], "Heart HD": organ_hd[1], "Trachea HD": organ_hd[2],
-               "Aorta HD": organ_hd[3]}
-    return dice_dict, hd_dict
+    asd_dict = {"Esophegus asd": organ_asd[0], "Heart asd": organ_asd[1], "Trachea asd": organ_asd[2],
+               "Aorta asd": organ_asd[3]}
+    return dice_dict, asd_dict
 
 
-def print_LCTSC(organ_dice, organ_hd):
+def print_LCTSC(organ_dice, organ_asd):
     dice_dict = {"Esophegus Dice": organ_dice[0], "Spine Dice": organ_dice[1], "Heart Dice": organ_dice[2],
                  "Left Lung Dice": organ_dice[3], "Right Lung Dice": organ_dice[4]}
-    hd_dict = {"Esophegus HD": organ_hd[0], "Spine HD": organ_hd[1], "Heart HD": organ_hd[2],
-               "Left Lung HD": organ_hd[3], "Right Lung HD": organ_hd[4]}
-    return dice_dict, hd_dict
+    asd_dict = {"Esophegus asd": organ_asd[0], "Spine asd": organ_asd[1], "Heart asd": organ_asd[2],
+               "Left Lung asd": organ_asd[3], "Right Lung asd": organ_asd[4]}
+    return dice_dict, asd_dict
 
 
 def create_region_from_mask(mask, join_labels: tuple):
@@ -73,18 +73,18 @@ def create_region_from_mask(mask, join_labels: tuple):
 def evaluate_case(image_gt, image_pred, regions):
     # results = {}
     dice_values = []
-    hd_values = []
+    asd_values = []
     iou_values = []
     for r in regions:
         mask_pred = create_region_from_mask(image_pred, regions[r])
         mask_gt = create_region_from_mask(image_gt, regions[r])
         dc = np.nan if np.sum(mask_gt) == 0 and np.sum(mask_pred) == 0 else metric.dc(mask_pred, mask_gt)
-        hd = np.nan if np.sum(mask_gt) == 0 or np.sum(mask_pred) == 0 else metric.asd(mask_pred, mask_gt)
+        asd = np.nan if np.sum(mask_gt) == 0 or np.sum(mask_pred) == 0 else metric.asd(mask_pred, mask_gt)
         iou = np.nan if np.sum(mask_gt) == 0 or np.sum(mask_pred) == 0 else iou_numpy(mask_pred, mask_gt)
         dice_values.append(dc)
-        hd_values.append(hd)
+        asd_values.append(asd)
         iou_values.append(iou)
 
     # results["Dice"] = dice_values
-    # results["HD"] = hd_values
-    return dice_values, hd_values, iou_values
+    # results["asd"] = asd_values
+    return dice_values, asd_values, iou_values
