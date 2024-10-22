@@ -103,6 +103,7 @@ class EMCADNet(nn.Module):
         #print(x1.shape, x2.shape, x3.shape, x4.shape)
 
         if isinstance(weights, torch.Tensor) and mode=="train":
+            # print("Call from uncertainty")
             features = [x.shape[1] for x in self.skips]
             dims = [x.shape[2] for x in self.skips]
             batch_unc = [x.shape[0] for x in self.skips]
@@ -110,31 +111,33 @@ class EMCADNet(nn.Module):
             self.skips = self.attenion(weights, self.skips)
 
         # decoder
-        x4_noise = self.noise(x4)
-        dec_outs = self.decoder(x4, self.skips)
-        dec_outs_noise = self.decoder_aux(x4_noise, self.skips)
 
-        # prediction heads  
+        dec_outs = self.decoder(x4, self.skips)
+
+        # prediction heads
         # p4 = self.out_head4(dec_outs[0])
         # p3 = self.out_head3(dec_outs[1])
         p2 = self.out_head2(dec_outs[2])
         p1 = self.out_head1(dec_outs[3])
-
-        p2_noise = self.out_head2(dec_outs_noise[2])
-        p1_noise = self.out_head1(dec_outs_noise[3])
 
         # p4 = F.interpolate(p4, scale_factor=32, mode='bilinear')
         # p3 = F.interpolate(p3, scale_factor=16, mode='bilinear')
         p2 = F.interpolate(p2, scale_factor=8, mode='bilinear')
         p1 = F.interpolate(p1, scale_factor=4, mode='bilinear')
 
+        if mode == 'test':
+            return [p2, p1]
+
+        x4_noise = self.noise(x4)
+        dec_outs_noise = self.decoder_aux(x4_noise, self.skips)
+
+        p2_noise = self.out_head2(dec_outs_noise[2])
+        p1_noise = self.out_head1(dec_outs_noise[3])
+
         p2_noise = F.interpolate(p2_noise, scale_factor=8, mode='bilinear')
         p1_noise = F.interpolate(p1_noise, scale_factor=4, mode='bilinear')
-
-        if mode == 'test':
-            return [p2_noise, p1_noise, p2, p1]
         
-        return [p2_noise, p1_noise, p2, p1]
+        return [p1_noise, p2_noise, p2, p1]
                
 
         

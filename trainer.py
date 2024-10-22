@@ -87,15 +87,18 @@ def trainer_synapse(args, model, snapshot_path):
             image_batch, label_batch = sampled_batch['image'], sampled_batch['label']
             image_batch, label_batch = image_batch.cuda(), label_batch.squeeze(1).cuda()
 
-            P = model(image_batch, mode='train')
+            # P = model(image_batch, mode='train')
 
-            # if weights is None:
-            #     P = model(image_batch, mode='train')
-            # else:
-            #     P = model(image_batch, weights=weights, mode='train')
+            if weights is None:
+                P = model(image_batch, mode='train')
+            else:
+                P = model(image_batch, weights=weights, mode='train')
 
 
-            # weights, subs = get_uncertainty_weights(args, P[0], P[-1])
+            weights, subs = get_uncertainty_weights(args, P[0], P[-1])
+
+            # print(weights.shape)
+            # print(subs.shape)
 
 
             # print(p.shape, p_aux.shape)
