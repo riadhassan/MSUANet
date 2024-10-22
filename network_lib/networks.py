@@ -100,18 +100,8 @@ class EMCADNet(nn.Module):
         # encoder
         x1, x2, x3, x4 = self.backbone(x)
         self.skips = [x3, x2, x1]
-        #print(x1.shape, x2.shape, x3.shape, x4.shape)
-
-        if isinstance(weights, torch.Tensor) and mode=="train":
-            # print("Call from uncertainty")
-            features = [x.shape[1] for x in self.skips]
-            dims = [x.shape[2] for x in self.skips]
-            batch_unc = [x.shape[0] for x in self.skips]
-            self.attenion = U_AttentionDense(dims, features, batch_unc)
-            self.skips = self.attenion(weights, self.skips)
 
         # decoder
-
         dec_outs = self.decoder(x4, self.skips)
 
         # prediction heads
