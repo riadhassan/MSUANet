@@ -43,7 +43,7 @@ def conf():
     args.add_argument("--writerfq", type=int, default=50)
     args.add_argument("--model_save_fq", type=bool, default=False)
     args.add_argument("--debug_type", type=str, default="nifti", help="Two options: 1) nifti. 2)jpg")
-    args.add_argument("--num_epoch", type=int, default=300)
+    args.add_argument("--num_epoch", type=int, default=5)
     args.add_argument("--done_epoch", type=int, default=0)
     args.add_argument("--device", type=str, default="cuda")
     args.add_argument("--imsize", type=int, default=256)

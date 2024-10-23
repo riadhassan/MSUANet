@@ -60,7 +60,7 @@ class OrganSegmentationDataset(Dataset):
                 self.data_paths.append(filePath)
                 self.data_paths = sorted(self.data_paths)
             '''
-        print(self.patient_ids)
+        # print(self.patient_ids)
 
     def normalize_data(self, data):
         # data[data< -150]=-150
