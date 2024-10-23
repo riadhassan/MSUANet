@@ -1,23 +1,25 @@
-import sys
-sys.path.append('../')
-
 import numpy as np
 import torch
 import argparse
 import torch.nn as nn
-from data_loader import *
+from Segthor_dataset.data_loader import *
 from tqdm import tqdm
 import glob
 from torch.utils.tensorboard import SummaryWriter
 from scipy.io import loadmat
-import evaluate
+import Segthor_dataset.evaluate as evaluate
 import nibabel as nib
 import pandas as pd
 import os
-from wraper import ModelWraper
+from Segthor_dataset.wraper import ModelWraper
 import random
 import torch.backends.cudnn as cudnn
-
+from torch.nn.modules.loss import CrossEntropyLoss
+from utils.utils import powerset, one_hot_encoder, DiceLoss, val_single_volume
+import logging
+from tensorboardX import SummaryWriter
+from network_lib.networks import EMCADNet
+import torch.optim as optim
 
 def save_validation_nifti(img, gt, seg, path, patient, affine):
     new_img = nib.Nifti1Image(img, affine)
@@ -31,7 +33,7 @@ def save_validation_nifti(img, gt, seg, path, patient, affine):
 
 def conf():
     args = argparse.ArgumentParser()
-    args.add_argument("--data_root", type=str, default="C:\\Users\IICT2\Desktop\Dataset_SegThor")
+    args.add_argument("--data_root", type=str, default="C:\\Users\IICT2\Desktop\Dataset_SegThor\Demo")
     args.add_argument("--input_channels", type=int, default=1)
     args.add_argument("--output_channels", type=int, default=5)
     args.add_argument("--lr", type=float, default=0.001)
@@ -127,7 +129,7 @@ def conf():
     else:
         dw_mode = 'parallel'
 
-    run = "_Only_EMCAD_With_noise_V3_"
+    run = "SegThor_Only_EMCAD_With_Noise_fusion_"
     args.exp = args.encoder + '_EMCAD_kernel_sizes_' + str(
         args.kernel_sizes) + '_dw_' + dw_mode + '_' + aggregation + '_lgag_ks_' + str(args.lgag_ks) + '_ef' + str(
         args.expansion_factor) + '_act_mscb_' + args.activation_mscb + '_loss_' + args.supervision + '_output_final_layer_Run' + str(
@@ -203,30 +205,86 @@ def run_on_slices(model, data, conf):
 
 def main(conf):
     # device = torch.device("cpu" if not torch.cuda.is_available() else "mps")
+    device = torch.device(conf.device)
     wraper = ModelWraper(conf)
+    seg_model = EMCADNet(num_classes=conf.num_classes, kernel_sizes=conf.kernel_sizes,
+                              expansion_factor=conf.expansion_factor, dw_parallel=not conf.no_dw_parallel,
+                              add=not conf.concatenation, lgag_ks=conf.lgag_ks, activation=conf.activation_mscb,
+                              encoder=conf.encoder, pretrain=not conf.no_pretrain)
+    seg_model.to(device)
+    optimizer = optim.AdamW(seg_model.parameters(), lr=conf.base_lr, weight_decay=0.0001)
+    ce_loss = CrossEntropyLoss()
+    dice_loss = DiceLoss(conf.num_classes)
+    writer = SummaryWriter(conf.snapshot_path + '/log')
     train_loader, val_loader = data_loaders(conf.data_root)
 
     loaders = {"train": train_loader, "valid": val_loader}
-    model_path, log_path, debug_path = create_dirs(conf)
-    writer = SummaryWriter(log_path)
-    conf.debug_path = debug_path
+    # model_path, log_path, debug_path = create_dirs(conf)
+    conf.debug_path = conf.snapshot_path
 
     all_dice_dict = []
     all_asd_dict = []
+    iter_num = 0
 
     ###### Training #######
     total_iter = 0
     for epoch in tqdm(range(conf.done_epoch, conf.num_epoch + 1)):
         print("Training...")
         #### Training Loop ###
-        wraper.set_mood(True)
+        seg_model.train()
         conf.curr_epoch = epoch
 
         for i, data in enumerate(train_loader):
-            loss1 = wraper.update_models(data, i, epoch)
+            image_batch, label_batch = data[0], data[1]
+            image_batch, label_batch = image_batch.cuda(), label_batch.squeeze(1).cuda()
 
-        print(f"Enad of epoch: {epoch}. Now validating.....")
-        wraper.set_mood(False)
+
+            P = seg_model(image_batch, mode='train')
+
+
+            if not isinstance(P, list):
+                P = [P]
+            if epoch == 0 and i == 0:
+                n_outs = len(P)
+                out_idxs = list(np.arange(n_outs))  # [0, 1, 2, 3]#, 4, 5, 6, 7]
+                if conf.supervision == 'mutation':
+                    ss = [x for x in powerset(out_idxs)]
+                elif conf.supervision == 'deep_supervision':
+                    ss = [[x] for x in out_idxs]
+                else:
+                    ss = [[-1]]
+                print(ss)
+
+            loss = 0.0
+            w_ce, w_dice = 0.3, 0.7
+
+            for s in ss:
+                iout = 0.0
+                if (s == []):
+                    continue
+                for idx in range(len(s)):
+                    iout += P[s[idx]]
+                loss_ce = ce_loss(iout, label_batch[:].long())
+                loss_dice = dice_loss(iout, label_batch, softmax=True)
+                loss += (w_ce * loss_ce + w_dice * loss_dice)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # lr_ = base_lr * (1.0 - iter_num / max_iterations) ** 0.9 # we did not use this
+            lr_ = conf.base_lr
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr_
+
+            iter_num = iter_num + 1
+            writer.add_scalar('info/lr', lr_, iter_num)
+            writer.add_scalar('info/total_loss', loss, iter_num)
+
+            if iter_num % 50 == 0:
+                logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
+
+        print(f"End of epoch: {epoch}. Now validating.....")
+        seg_model.eval()
         all_dice = []
         all_asd = []
         all_iou = []
@@ -238,8 +296,6 @@ def main(conf):
                 all_dice.append(dice)
                 all_asd.append(asd)
                 all_iou.append(iou)
-                if conf.debug_type == "nifti":
-                    save_validation_nifti(img_vol, gt, seg, debug_path, patient, affine_mat)
 
         organ_dice = np.mean(all_dice, 0)
         organ_asd = np.mean(all_asd, 0)
@@ -250,8 +306,8 @@ def main(conf):
         print(asd_dict)
         all_dice_dict.append(dice_dict)
         all_asd_dict.append(asd_dict)
-        pd.DataFrame.from_dict(all_dice_dict).to_csv(os.path.join(model_path, "Validation_dice.csv"))
-        pd.DataFrame.from_dict(all_asd_dict).to_csv(os.path.join(model_path, "Validation_asd.csv"))
+        pd.DataFrame.from_dict(all_dice_dict).to_csv(os.path.join(conf.snapshot_path, "Validation_dice.csv"))
+        pd.DataFrame.from_dict(all_asd_dict).to_csv(os.path.join(conf.snapshot_path, "Validation_asd.csv"))
         # pd.DataFrame.from_dict(all_iou_dict).to_csv(os.path.join(model_path,"Validation_iou.csv"))
 
         ### Saving the best model ###
@@ -266,23 +322,23 @@ def main(conf):
                 'epoch': epoch,
                 'model_state_dict': wraper.seg_model.state_dict(),
                 'optimizer_state_dict': wraper.optimizer1.state_dict(),
-                'loss': loss1,
-            }, os.path.join(model_path, "best.pth"))
+                'loss': loss,
+            }, os.path.join(conf.snapshot_path, "best.pth"))
             best_mean_dice = curr_mean_dice
         elif epoch%50==0:
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': wraper.seg_model.state_dict(),
                 'optimizer_state_dict': wraper.optimizer1.state_dict(),
-                'loss': loss1,
-            }, os.path.join(model_path, f"model_{epoch}.pth"))
+                'loss': loss,
+            }, os.path.join(conf.snapshot_path, f"model_{epoch}.pth"))
         else:
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': wraper.seg_model.state_dict(),
                 'optimizer_state_dict': wraper.optimizer1.state_dict(),
-                'loss': loss1,
-            }, os.path.join(model_path, "last.pth"))
+                'loss': loss,
+            }, os.path.join(conf.snapshot_path, "last.pth"))
 
 
 if __name__ == "__main__":

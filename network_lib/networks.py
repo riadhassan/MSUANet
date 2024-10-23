@@ -10,7 +10,6 @@ from network_lib.networks_utils import *
 
 
 
-
 class EMCADNet(nn.Module):
     def __init__(self, num_classes=1, kernel_sizes=[1,3,5], expansion_factor=2, dw_parallel=True, add=True, lgag_ks=3, activation='relu', encoder='pvt_v2_b2', pretrain=True):
         super(EMCADNet, self).__init__()

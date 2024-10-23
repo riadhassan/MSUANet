@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import glob
 from scipy.io import loadmat
-from data_aug import augment_image_label
+from Segthor_dataset.data_aug import augment_image_label
 
 
 class OrganSegmentationDataset(Dataset):
@@ -28,11 +28,11 @@ class OrganSegmentationDataset(Dataset):
         self.required_test = False
 
         print("reading {} images...".format(subset))
-        filesPath = glob.glob(self.images_dir + "/*.mat")
+        filesPath = glob.glob(self.images_dir + os.sep+ "*.mat")
 
         if (subset == "train"):
             for filePath in sorted(filesPath):
-                patient_id = int(filePath.split("/")[-1].split("_")[1])
+                patient_id = int(filePath.split(os.sep)[-1].split("_")[1])
                 # if patient_id <= self.traning_patient:
                 #  if patient_id not in self.patient_ids:
                 self.patient_ids.append(patient_id)
@@ -80,7 +80,7 @@ class OrganSegmentationDataset(Dataset):
 
         if self.subset == "train":
             filePath = self.data_paths[id]
-            file_name = filePath.split("/")[-1].split("_")
+            file_name = filePath.split(os.sep)[-1].split("_")
             patient_id = int(file_name[1])
             slice_id = int(file_name[3].split(".")[0])
             mat = loadmat(filePath)
@@ -112,7 +112,7 @@ def data_loaders(data_dir):
 
     loader_train = DataLoader(
         dataset_train,
-        batch_size=1,
+        batch_size=6,
         shuffle=True,
         drop_last=True,
         num_workers=0,

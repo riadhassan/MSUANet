@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../')
+
 import torch
 import torch.optim as optim
 from network_lib.networks import EMCADNet
@@ -24,8 +27,7 @@ class ModelWraper:
         self.base_lr = conf.base_lr
         self.seg_model.to(self.device)
         self.weights = None
-        self.optimizer1 = optim.Adam(self.seg_model.parameters(), lr=conf.lr)
-        self.optimizer1 = optim.AdamW(self.model.parameters(), lr=self.base_lr, weight_decay=0.0001)
+        self.optimizer1 = optim.AdamW(self.seg_model.parameters(), lr=self.base_lr, weight_decay=0.0001)
         self.ce_loss = CrossEntropyLoss()
         self.dice_loss = DiceLoss(self.num_classes)
         self.writer = SummaryWriter(conf.snapshot_path + '/log')
@@ -40,49 +42,11 @@ class ModelWraper:
 
     def update_models(self, input, iter, epoch):
         image_batch, label_batch = input[0], input[1]
+        image_batch, label_batch = image_batch.cuda(), label_batch.squeeze(1).cuda()
 
         P = self.seg_model(image_batch, mode='train')
 
-        if not isinstance(P, list):
-            P = [P]
-        if epoch == 0 and iter == 0:
-            n_outs = len(P)
-            out_idxs = list(np.arange(n_outs))  # [0, 1, 2, 3]#, 4, 5, 6, 7]
-            if self.supervision == 'mutation':
-                ss = [x for x in powerset(out_idxs)]
-            elif self.supervision == 'deep_supervision':
-                ss = [[x] for x in out_idxs]
-            else:
-                ss = [[-1]]
-            print(ss)
 
-        loss = 0.0
-        w_ce, w_dice = 0.3, 0.7
 
-        for s in ss:
-            iout = 0.0
-            if (s == []):
-                continue
-            for idx in range(len(s)):
-                iout += P[s[idx]]
-            loss_ce = self.ce_loss(iout, label_batch[:].long())
-            loss_dice = self.dice_loss(iout, label_batch, softmax=True)
-            loss += (w_ce * loss_ce + w_dice * loss_dice)
-
-        self.optimizer1.zero_grad()
-        self.loss.backward()
-        self.optimizer1.step()
-        # lr_ = base_lr * (1.0 - iter_num / max_iterations) ** 0.9 # we did not use this
-        lr_ = self.base_lr
-        for param_group in self.optimizer1.param_groups:
-            param_group['lr'] = lr_
-
-        iter_num = iter + 1
-        self.writer.add_scalar('info/lr', lr_, iter_num)
-        self.writer.add_scalar('info/total_loss', loss, iter_num)
-
-        if iter_num % 50 == 0:
-            logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
-
-        return loss
+        return P
 
