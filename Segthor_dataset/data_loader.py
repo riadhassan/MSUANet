@@ -94,8 +94,22 @@ class OrganSegmentationDataset(Dataset):
                                               height_shift_range=0.05, width_shift_range=0.05,
                                               shear_range=None, zoom_range=(0.95, 1.05), elastic=None, add_noise=0.0)
             image = self.normalize_data(image)
-            image_tensor = torch.from_numpy(image.astype(np.float32))
-            mask_tensor = torch.from_numpy(mask.astype(int))
+            #image_tensor = torch.from_numpy(image.astype(np.float32))
+            #mask_tensor = torch.from_numpy(mask.astype(int))
+
+            # Ensure image is a NumPy array before conversion
+            if isinstance(image, np.ndarray):
+                image_tensor = torch.from_numpy(image.astype(np.float32))
+            else:
+                # If it's already a tensor, just ensure the dtype is correct
+                image_tensor = image.float()
+
+            # Ensure mask is also a tensor and correctly formatted
+            if isinstance(mask, np.ndarray):
+                mask_tensor = torch.from_numpy(mask.astype(int))
+            else:
+                mask_tensor = mask.float()
+
             return image_tensor, mask_tensor, patient_id, slice_id
 
         elif self.subset == "test":
