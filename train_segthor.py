@@ -282,6 +282,7 @@ def main(conf):
 
             if iter_num % 50 == 0:
                 logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
+                print('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
 
         print(f"End of epoch: {epoch}. Now validating.....")
         seg_model.eval()
