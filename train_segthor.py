@@ -191,8 +191,7 @@ def run_on_slices(model, data, conf):
         image = torch.from_numpy(image[None, None, :, :].astype(np.float32))
         image = image.to(conf.device)
         _, pred = model(image)
-        pred = nn.Softmax(pred, axis=1)
-        pred = torch.argmax(pred, axis=1)
+        pred = torch.argmax(torch.softmax(pred, dim=1), dim=1)
         gt_mask.append(mask)
         seg_mask.append(pred.detach().cpu().numpy())
         img_vol.append(image.detach().cpu().numpy())
@@ -205,6 +204,8 @@ def run_on_slices(model, data, conf):
 
 
 def main(conf):
+    logging.basicConfig(filename=conf.snapshot_path + "/log.txt", level=logging.INFO,
+                        format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
     # device = torch.device("cpu" if not torch.cuda.is_available() else "mps")
     device = torch.device(conf.device)
     # wraper = ModelWraper(conf)
@@ -281,9 +282,11 @@ def main(conf):
             writer.add_scalar('info/lr', lr_, iter_num)
             writer.add_scalar('info/total_loss', loss, iter_num)
 
-            if iter_num % 50 == 0:
+            if iter_num % 100 == 0:
                 logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
                 print('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
+        logging.info('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
+        print('iteration %d, epoch %d : loss : %f, lr: %f' % (iter_num, epoch, loss.item(), lr_))
 
         print(f"End of epoch: {epoch}. Now validating.....")
         seg_model.eval()
@@ -319,6 +322,7 @@ def main(conf):
 
         curr_mean_dice = np.mean(organ_dice)
         print(f"Epoch: {epoch} Mean dice: {curr_mean_dice} Best Dice: {best_mean_dice}")
+        logging.info(f"Epoch: {epoch} Mean dice: {curr_mean_dice} Best Dice: {best_mean_dice}")
         if curr_mean_dice > best_mean_dice:
             torch.save({
                 'epoch': epoch,
