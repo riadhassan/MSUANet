@@ -5,6 +5,7 @@ from functools import partial
 import math
 from timm.models.layers import trunc_normal_tf_
 from timm.models.helpers import named_apply
+from network_lib.networks_utils import FeatureNoise
 
 
 def gcd(a, b):
@@ -387,4 +388,94 @@ class EMCAD(nn.Module):
         d1 = self.sab(d1)*d1
         d1 = self.mscb1(d1)
         
+        return [d4, d3, d2, d1]
+
+
+class EMCAD_noise(nn.Module):
+    def __init__(self, channels=[512, 320, 128, 64], kernel_sizes=[1, 3, 5], expansion_factor=6, dw_parallel=True,
+                 add=True, lgag_ks=3, activation='relu6'):
+        super(EMCAD_noise, self).__init__()
+        eucb_ks = 3  # kernel size for eucb
+        self.mscb4 = MSCBLayer(channels[0], channels[0], n=1, stride=1, kernel_sizes=kernel_sizes,
+                               expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add,
+                               activation=activation)
+
+        self.eucb3 = EUCB(in_channels=channels[0], out_channels=channels[1], kernel_size=eucb_ks, stride=eucb_ks // 2)
+        self.lgag3 = LGAG(F_g=channels[1], F_l=channels[1], F_int=channels[1] // 2, kernel_size=lgag_ks,
+                          groups=channels[1] // 2)
+        self.mscb3 = MSCBLayer(channels[1], channels[1], n=1, stride=1, kernel_sizes=kernel_sizes,
+                               expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add,
+                               activation=activation)
+
+        self.eucb2 = EUCB(in_channels=channels[1], out_channels=channels[2], kernel_size=eucb_ks, stride=eucb_ks // 2)
+        self.lgag2 = LGAG(F_g=channels[2], F_l=channels[2], F_int=channels[2] // 2, kernel_size=lgag_ks,
+                          groups=channels[2] // 2)
+        self.mscb2 = MSCBLayer(channels[2], channels[2], n=1, stride=1, kernel_sizes=kernel_sizes,
+                               expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add,
+                               activation=activation)
+
+        self.eucb1 = EUCB(in_channels=channels[2], out_channels=channels[3], kernel_size=eucb_ks, stride=eucb_ks // 2)
+        self.lgag1 = LGAG(F_g=channels[3], F_l=channels[3], F_int=int(channels[3] / 2), kernel_size=lgag_ks,
+                          groups=int(channels[3] / 2))
+        self.mscb1 = MSCBLayer(channels[3], channels[3], n=1, stride=1, kernel_sizes=kernel_sizes,
+                               expansion_factor=expansion_factor, dw_parallel=dw_parallel, add=add,
+                               activation=activation)
+
+        self.cab4 = CAB(channels[0])
+        self.cab3 = CAB(channels[1])
+        self.cab2 = CAB(channels[2])
+        self.cab1 = CAB(channels[3])
+
+        self.sab = SAB()
+        self.noise = FeatureNoise()
+
+    def forward(self, x, skips):
+        # MSCAM4
+        x = self.noise(x)
+        d4 = self.cab4(x) * x
+        d4 = self.sab(d4) * d4
+        d4 = self.mscb4(d4)
+
+        # EUCB3
+        d3 = self.eucb3(d4)
+
+        # LGAG3
+        x3 = self.lgag3(g=d3, x=skips[0])
+
+        # Additive aggregation 3
+        d3 = d3 + x3
+
+        # MSCAM3
+        d3 = self.cab3(d3) * d3
+        d3 = self.sab(d3) * d3
+        d3 = self.mscb3(d3)
+
+        # EUCB2
+        d2 = self.eucb2(d3)
+
+        # LGAG2
+        x2 = self.lgag2(g=d2, x=skips[1])
+
+        # Additive aggregation 2
+        d2 = d2 + x2
+
+        # MSCAM2
+        d2 = self.cab2(d2) * d2
+        d2 = self.sab(d2) * d2
+        d2 = self.mscb2(d2)
+
+        # EUCB1
+        d1 = self.eucb1(d2)
+
+        # LGAG1
+        x1 = self.lgag1(g=d1, x=skips[2])
+
+        # Additive aggregation 1
+        d1 = d1 + x1
+
+        # MSCAM1
+        d1 = self.cab1(d1) * d1
+        d1 = self.sab(d1) * d1
+        d1 = self.mscb1(d1)
+
         return [d4, d3, d2, d1]

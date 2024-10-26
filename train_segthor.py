@@ -33,7 +33,7 @@ def save_validation_nifti(img, gt, seg, path, patient, affine):
 
 def conf():
     args = argparse.ArgumentParser()
-    args.add_argument("--data_root", type=str, default="C:\\Users\IICT2\Desktop\Dataset_SegThor\Demo")
+    args.add_argument("--data_root", type=str, default="C:\\Users\IICT2\Desktop\Dataset_SegThor")
     args.add_argument("--input_channels", type=int, default=1)
     args.add_argument("--output_channels", type=int, default=5)
     args.add_argument("--lr", type=float, default=0.001)
@@ -43,7 +43,7 @@ def conf():
     args.add_argument("--writerfq", type=int, default=50)
     args.add_argument("--model_save_fq", type=bool, default=False)
     args.add_argument("--debug_type", type=str, default="nifti", help="Two options: 1) nifti. 2)jpg")
-    args.add_argument("--num_epoch", type=int, default=5)
+    args.add_argument("--num_epoch", type=int, default=200)
     args.add_argument("--done_epoch", type=int, default=0)
     args.add_argument("--device", type=str, default="cuda")
     args.add_argument("--imsize", type=int, default=256)
@@ -56,7 +56,7 @@ def conf():
                         default=5, help='output channel of network')
     # network related parameters
     args.add_argument('--encoder', type=str,
-                        default='pvt_v2_b0', help='Name of encoder: pvt_v2_b2, pvt_v2_b0, resnet18, resnet34 ...')
+                        default='pvt_v2_b2', help='Name of encoder: pvt_v2_b2, pvt_v2_b0, resnet18, resnet34 ...')
     args.add_argument('--expansion_factor', type=int,
                         default=2, help='expansion factor in MSCB block')
     args.add_argument('--kernel_sizes', type=int, nargs='+',
@@ -206,7 +206,7 @@ def run_on_slices(model, data, conf):
 def main(conf):
     # device = torch.device("cpu" if not torch.cuda.is_available() else "mps")
     device = torch.device(conf.device)
-    wraper = ModelWraper(conf)
+    # wraper = ModelWraper(conf)
     seg_model = EMCADNet(num_classes=conf.num_classes, kernel_sizes=conf.kernel_sizes,
                               expansion_factor=conf.expansion_factor, dw_parallel=not conf.no_dw_parallel,
                               add=not conf.concatenation, lgag_ks=conf.lgag_ks, activation=conf.activation_mscb,
@@ -291,7 +291,7 @@ def main(conf):
         with torch.no_grad():
             for i, data in enumerate(val_loader):
                 vdata, patient = data
-                img_vol, gt, seg, affine_mat = run_on_slices(wraper.seg_model, vdata, conf)
+                img_vol, gt, seg, affine_mat = run_on_slices(seg_model, vdata, conf)
                 dice, asd, iou = evaluate.evaluate_case(seg, gt, evaluate.get_Organ_regions())
                 all_dice.append(dice)
                 all_asd.append(asd)
@@ -320,23 +320,23 @@ def main(conf):
         if curr_mean_dice > best_mean_dice:
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': wraper.seg_model.state_dict(),
-                'optimizer_state_dict': wraper.optimizer1.state_dict(),
+                'model_state_dict': seg_model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
             }, os.path.join(conf.snapshot_path, "best.pth"))
             best_mean_dice = curr_mean_dice
         elif epoch%50==0:
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': wraper.seg_model.state_dict(),
-                'optimizer_state_dict': wraper.optimizer1.state_dict(),
+                'model_state_dict': seg_model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
             }, os.path.join(conf.snapshot_path, f"model_{epoch}.pth"))
         else:
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': wraper.seg_model.state_dict(),
-                'optimizer_state_dict': wraper.optimizer1.state_dict(),
+                'model_state_dict': seg_model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss,
             }, os.path.join(conf.snapshot_path, "last.pth"))
 

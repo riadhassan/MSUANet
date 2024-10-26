@@ -301,3 +301,4 @@ pip-selfcheck.json
 /data
 /pretrained_pth
 .idea/
+prototype.py

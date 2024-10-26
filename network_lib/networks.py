@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from network_lib.pvtv2 import pvt_v2_b0, pvt_v2_b1, pvt_v2_b2, pvt_v2_b3, pvt_v2_b4, pvt_v2_b5
 from network_lib.resnet import resnet18, resnet34, resnet50, resnet101, resnet152
-from network_lib.decoders import EMCAD
+from network_lib.decoders import EMCAD, EMCAD_noise
 from network_lib.networks_utils import *
 
 
@@ -83,6 +83,9 @@ class EMCADNet(nn.Module):
         self.noise = FeatureNoise()
         print('Model %s created, param count: %d' %
                      ('EMCAD decoder: ', sum([m.numel() for m in self.decoder.parameters()])))
+
+        print('Model %s created, param count: %d' %
+              ('EMCAD Noisy_decoder: ', sum([m.numel() for m in self.decoder_aux.parameters()])))
              
         # self.out_head4 = nn.Conv2d(channels[0], num_classes, 1)
         # self.out_head3 = nn.Conv2d(channels[1], num_classes, 1)
