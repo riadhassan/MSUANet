@@ -44,12 +44,14 @@ def get_LCTSC_regions():
     return regions
 
 
-def print_Thoracic(organ_dice, organ_asd):
+def print_Thoracic(organ_dice, organ_asd, organ_iou):
     dice_dict = {"Esophegus Dice": organ_dice[0], "Heart": organ_dice[1], "Trachea": organ_dice[2],
                  "Aorta": organ_dice[3]}
     asd_dict = {"Esophegus asd": organ_asd[0], "Heart asd": organ_asd[1], "Trachea asd": organ_asd[2],
                "Aorta asd": organ_asd[3]}
-    return dice_dict, asd_dict
+    iou_dict = {"Esophegus iou": organ_iou[0], "Heart iou": organ_iou[1], "Trachea iou": organ_iou[2],
+                "Aorta iou": organ_iou[3]}
+    return dice_dict, asd_dict, iou_dict
 
 
 def print_LCTSC(organ_dice, organ_asd):

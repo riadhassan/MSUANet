@@ -129,7 +129,7 @@ def conf():
     else:
         dw_mode = 'parallel'
 
-    run = "SegThor_Only_EMCAD_With_Noise_fusion_"
+    run = "_SegThor_EMCAD_With_Noise_fusion_with_iou"
     args.exp = args.encoder + '_EMCAD_kernel_sizes_' + str(
         args.kernel_sizes) + '_dw_' + dw_mode + '_' + aggregation + '_lgag_ks_' + str(args.lgag_ks) + '_ef' + str(
         args.expansion_factor) + '_act_mscb_' + args.activation_mscb + '_loss_' + args.supervision + '_output_final_layer_Run' + str(
@@ -226,6 +226,7 @@ def main(conf):
 
     all_dice_dict = []
     all_asd_dict = []
+    all_iou_dict = []
     iter_num = 0
 
     ###### Training #######
@@ -305,15 +306,17 @@ def main(conf):
         organ_dice = np.mean(all_dice, 0)
         organ_asd = np.mean(all_asd, 0)
         organ_iou = np.mean(all_iou, 0)
-        dice_dict, asd_dict = evaluate.print_Thoracic(organ_dice, organ_asd)
+        dice_dict, asd_dict, iou_dict = evaluate.print_Thoracic(organ_dice, organ_asd, organ_iou)
 
         print(dice_dict)
         print(asd_dict)
+        print(iou_dict)
         all_dice_dict.append(dice_dict)
         all_asd_dict.append(asd_dict)
+        all_iou_dict.append(iou_dict)
         pd.DataFrame.from_dict(all_dice_dict).to_csv(os.path.join(conf.snapshot_path, "Validation_dice.csv"))
         pd.DataFrame.from_dict(all_asd_dict).to_csv(os.path.join(conf.snapshot_path, "Validation_asd.csv"))
-        # pd.DataFrame.from_dict(all_iou_dict).to_csv(os.path.join(model_path,"Validation_iou.csv"))
+        pd.DataFrame.from_dict(all_iou_dict).to_csv(os.path.join(conf.snapshot_path,"Validation_iou.csv"))
 
         ### Saving the best model ###
         if epoch < 1:
